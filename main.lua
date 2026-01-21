@@ -6298,23 +6298,44 @@ local function startCoinFarm()
 
 	coinFarming = true
 	noClip()
-	fu.notification("Coin farming started. Teleporting to coins...")
+	fu.notification("Coin farming started. Scanning for coins...")
 
 	coinFarmLoop = task.spawn(function()
 		while coinFarming do
 			local coins = {}
-			for _, coin in ipairs(workspace:GetDescendants()) do
-				if coin:IsA("BasePart") and coin.Name == "Coin_Server" and coin:FindFirstChildWhichIsA("TouchTransmitter") and coin.CoinVisual.Transparency == 0 and not table.find(coinBlacklists, coin) then
-					table.insert(coins, coin)
+			local allCoinsFound = {}  -- Para debug: Lista tudo com "Coin" no nome
+
+			-- Primeiro, tenta buscar em uma pasta comum (ex.: workspace.Coins)
+			local coinsFolder = workspace:FindFirstChild("Coins")
+			if coinsFolder then
+				print("[DEBUG] Found 'Coins' folder in workspace.")
+				for _, coin in ipairs(coinsFolder:GetDescendants()) do
+					if coin:IsA("BasePart") and string.find(coin.Name, "Coin") then
+						table.insert(allCoinsFound, coin.Name .. " (Transparency: " .. tostring(coin:FindFirstChild("CoinVisual") and coin.CoinVisual.Transparency or "N/A") .. ")")
+						if coin:FindFirstChildWhichIsA("TouchTransmitter") and (not coin:FindFirstChild("CoinVisual") or coin.CoinVisual.Transparency == 0) and not table.find(coinBlacklists, coin) then
+							table.insert(coins, coin)
+						end
+					end
+				end
+			else
+				print("[DEBUG] No 'Coins' folder found. Scanning entire workspace...")
+				for _, coin in ipairs(workspace:GetDescendants()) do
+					if coin:IsA("BasePart") and string.find(coin.Name, "Coin") then
+						table.insert(allCoinsFound, coin.Name .. " (Transparency: " .. tostring(coin:FindFirstChild("CoinVisual") and coin.CoinVisual.Transparency or "N/A") .. ")")
+						if coin:FindFirstChildWhichIsA("TouchTransmitter") and (not coin:FindFirstChild("CoinVisual") or coin.CoinVisual.Transparency == 0) and not table.find(coinBlacklists, coin) then
+							table.insert(coins, coin)
+						end
+					end
 				end
 			end
+
+			print("[DEBUG] All coins found: " .. table.concat(allCoinsFound, ", "))  -- Lista tudo
+			print("[DEBUG] Valid coins to collect: " .. #coins)
 
 			if #coins == 0 then
 				fu.notification("No more coins found.")
 				break
 			end
-
-			print("[DEBUG] Found " .. #coins .. " coins to collect.")  -- Debug: Remova após testar
 
 			for _, coin in ipairs(coins) do
 				if not coinFarming then break end
@@ -6333,11 +6354,11 @@ local function startCoinFarm()
 
 					coinCollected = coinCollected + 1
 					table.insert(coinBlacklists, coin)
-					print("[DEBUG] Collected coin #" .. coinCollected)  -- Debug: Remova após testar
+					print("[DEBUG] Collected coin #" .. coinCollected .. " (" .. coin.Name .. ")")
 				else
-					print("[DEBUG] HumanoidRootPart not found or anchored.")  -- Debug
+					print("[DEBUG] HumanoidRootPart not found or anchored.")
 				end
-				task.wait(0.2)  -- Delay maior entre moedas para evitar detecção
+				task.wait(0.2)  -- Delay entre moedas
 			end
 
 			task.wait(0.5)  -- Pausa entre ciclos
@@ -6350,33 +6371,6 @@ local function startCoinFarm()
 		coinBlacklists = {}
 	end)
 end
-
-table.insert(module, {
-	Type = "Button",
-	Args = {"Start coin farming", function()
-		startCoinFarm()
-	end,}
-})
-
-table.insert(module, {
-	Type = "Button",
-	Args = {"Stop coin farming", function()
-		if not coinFarming then 
-			fu.notification("You're not coin farming.") 
-			return 
-		end
-		fu.notification("Stopping coin farming...")
-		coinFarming = false
-		if coinFarmLoop then
-			task.cancel(coinFarmLoop)
-		end
-		reClip()
-		coinCollected = 0
-		coinBlacklists = {}
-	end,}
-})
-
--- ... (código intermediário permanece igual)
 
 table.insert(module, {
 	Type = "Button",
