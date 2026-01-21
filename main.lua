@@ -6314,18 +6314,33 @@ local function startCoinFarm()
 				break
 			end
 
+			print("[DEBUG] Found " .. #coins .. " coins to collect.")  -- Debug: Remova após testar
+
 			for _, coin in ipairs(coins) do
 				if not coinFarming then break end
 				local hrp = game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-				if hrp then
-					hrp.CFrame = coin.CFrame * CFrame.new(0, 2, 0)  -- Teleporta um pouco acima para evitar colisões
-					task.wait(0.1)  -- Delay para evitar detecção
+				if hrp and not hrp.Anchored then
+					-- Teleporta para perto da moeda (não exatamente nela)
+					local targetPos = coin.Position + Vector3.new(0, 2, 0)  -- Um pouco acima
+					hrp.CFrame = CFrame.new(targetPos)
+					task.wait(0.1)  -- Pequeno delay para estabilizar
+
+					-- Simula o toque para coletar
+					if firetouchinterest then
+						firetouchinterest(hrp, coin:FindFirstChildWhichIsA("TouchTransmitter"), 0)
+						firetouchinterest(hrp, coin:FindFirstChildWhichIsA("TouchTransmitter"), 1)
+					end
+
 					coinCollected = coinCollected + 1
 					table.insert(coinBlacklists, coin)
+					print("[DEBUG] Collected coin #" .. coinCollected)  -- Debug: Remova após testar
+				else
+					print("[DEBUG] HumanoidRootPart not found or anchored.")  -- Debug
 				end
+				task.wait(0.2)  -- Delay maior entre moedas para evitar detecção
 			end
 
-			task.wait(0.5)  -- Pausa entre ciclos para estabilidade
+			task.wait(0.5)  -- Pausa entre ciclos
 		end
 
 		coinFarming = false
@@ -6335,6 +6350,31 @@ local function startCoinFarm()
 		coinBlacklists = {}
 	end)
 end
+
+table.insert(module, {
+	Type = "Button",
+	Args = {"Start coin farming", function()
+		startCoinFarm()
+	end,}
+})
+
+table.insert(module, {
+	Type = "Button",
+	Args = {"Stop coin farming", function()
+		if not coinFarming then 
+			fu.notification("You're not coin farming.") 
+			return 
+		end
+		fu.notification("Stopping coin farming...")
+		coinFarming = false
+		if coinFarmLoop then
+			task.cancel(coinFarmLoop)
+		end
+		reClip()
+		coinCollected = 0
+		coinBlacklists = {}
+	end,}
+})
 
 -- ... (código intermediário permanece igual)
 
